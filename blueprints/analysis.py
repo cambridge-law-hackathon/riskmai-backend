@@ -51,34 +51,27 @@ def analyse_company(company_id):
     
     # For now, provide a realistic analysis based on available data
     analysis_result = {
-        "company_info": data_summary,
-        "news_context": {
-            "articles_found": news_data.get("total_results", 0),
-            "recent_news": news_data.get("articles", [])[:5],  # Top 5 articles
-            "search_query": news_data.get("query", "")
-        },
-        "analysis_summary": f"Analysis completed for {company_name}. Found {len(context_items)} context items, {total_documents} documents, and {news_data.get('total_results', 0)} relevant news articles.",
         "risk_factors": [
             {
-                "factor": "Data Completeness", 
-                "level": "Medium" if total_documents > 0 else "High", 
-                "details": f"Company has {total_documents} documents and {len(context_items)} context items for analysis."
+                "factor": "", 
+                "level": "", 
+                "details": ""
             },
             {
-                "factor": "News Coverage", 
-                "level": "Low" if news_data.get("total_results", 0) > 5 else "Medium", 
-                "details": f"Found {news_data.get('total_results', 0)} relevant news articles in the past 30 days."
+                "factor": "", 
+                "level": "", 
+                "details": ""
             },
             {
-                "factor": "Content Volume", 
-                "level": "Low" if total_content_length > 10000 else "Medium", 
-                "details": f"Total content available: {total_content_length} characters."
+                "factor": "", 
+                "level": "", 
+                "details": ""
             }
         ],
         "recommendations": [
-            "Consider adding more context about the company's operations and risk profile.",
-            "Upload additional legal documents for comprehensive analysis.",
-            "Monitor news coverage for emerging risks and regulatory changes."
+            "",
+            "",
+            ""
         ],
         "available_data": {
             "context_items": context_items,
