@@ -1,0 +1,9 @@
+# Copy this file to terraform.tfvars and update with your values
+
+# Required: Your Google Cloud project ID
+project_id = "your-project-id"
+
+# Optional: Override defaults if needed
+region       = "europe-west2-a"
+bucket_name  = "business-risk-context-documents"
+environment  = "dev" 
