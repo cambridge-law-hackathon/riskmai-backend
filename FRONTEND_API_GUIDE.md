@@ -1,53 +1,56 @@
-# Frontend Integration Guide: Business Risk API
+# Frontend API Guide: Business Risk Analysis Platform
 
 ## Overview
 
-This backend provides a set of RESTful JSON APIs for managing companies, uploading documents (PDFs and emails), and running risk analysis. You'll be building a React frontend to interact with these endpoints.
+This guide provides comprehensive documentation for integrating your frontend application with the Business Risk Analysis Platform. The API enables you to manage companies, upload legal documents, perform risk analysis, and retrieve analysis results.
+
+## Quick Start
+
+### Base URL
+- **Development**: `http://127.0.0.1:5001/api`
+- **Production**: `https://your-production-domain.com/api`
+
+### Authentication
+Currently, no authentication is required for development. For production, implement appropriate authentication mechanisms.
+
+### Content Types
+- **JSON**: `Content-Type: application/json`
+- **File Uploads**: `Content-Type: multipart/form-data`
 
 ---
 
-## API Base URL
+## API Endpoints
 
-- **Local development:**  
-  `http://127.0.0.1:5001/api`
+### 1. **Company Management**
 
----
-
-## Authentication
-
-- **No authentication is required for local development** (unless you add it).
-- For production, we would want to add authentication (e.g., Google OAuth, Auth0, etc.).
-
----
-
-## Endpoints
-
-### 1. **List All Companies**
-
+#### List All Companies
 - **GET** `/api/companies`
-- **Response:**
+- **Description**: Retrieve all companies in the system
+- **Response**:
   ```json
   [
-    { "id": "abc123", "name": "Acme Corp" },
-    { "id": "xyz789", "name": "Globex Inc." }
+    {
+      "id": "abc123",
+      "name": "Acme Corp"
+    },
+    {
+      "id": "xyz789", 
+      "name": "Globex Inc"
+    }
   ]
   ```
-- **Usage:**
-  - Use this endpoint to populate a dropdown or list of companies in your React app.
 
----
-
-### 2. **Add a Company**
-
+#### Add Company
 - **POST** `/api/companies`
-- **Body:**  
+- **Description**: Create a new company
+- **Body**:
   ```json
   {
     "name": "Acme Corp",
-    "context": "Acme is a global widget supplier."
+    "context": "Acme is a global widget supplier with operations in 15 countries."
   }
   ```
-- **Response:**  
+- **Response**:
   ```json
   {
     "message": "Company added successfully",
@@ -55,18 +58,16 @@ This backend provides a set of RESTful JSON APIs for managing companies, uploadi
   }
   ```
 
----
-
-### 3. **Add Company Context**
-
+#### Add Company Context
 - **POST** `/api/companies/{company_id}/context`
-- **Body:**  
+- **Description**: Add additional context to an existing company
+- **Body**:
   ```json
   {
-    "context": "Acme recently expanded into Europe."
+    "context": "Acme recently expanded into European markets and acquired a competitor."
   }
   ```
-- **Response:**  
+- **Response**:
   ```json
   {
     "message": "Context added successfully",
@@ -74,117 +75,138 @@ This backend provides a set of RESTful JSON APIs for managing companies, uploadi
   }
   ```
 
----
-
-### 4. **Upload a Document (PDF or EML)**
-
-- **POST** `/api/companies/{company_id}/documents`
-- **Form Data:**  
-  - `file`: (PDF or EML file)
-- **Response:**  
-  ```json
-  {
-    "message": "File uploaded and processed successfully",
-    "document_id": "doc456",
-    "file_type": "pdf" // or "email"
-  }
-  ```
-
-**React Example:**
-```js
-const formData = new FormData();
-formData.append('file', fileInput.files[0]);
-fetch('/api/companies/abc123/documents', {
-  method: 'POST',
-  body: formData
-})
-  .then(res => res.json())
-  .then(data => console.log(data));
-```
-
----
-
-### 5. **Get Company Data**
-
+#### Get Company Data
 - **GET** `/api/companies/{company_id}`
-- **Response:**  
+- **Description**: Retrieve complete company data including context and documents
+- **Response**:
   ```json
   {
     "id": "abc123",
     "name": "Acme Corp",
-    "context": ["Acme is a global widget supplier.", "Acme recently expanded into Europe."],
-    "created_at": "...",
+    "context": [
+      "Acme is a global widget supplier with operations in 15 countries.",
+      "Acme recently expanded into European markets and acquired a competitor."
+    ],
+    "created_at": "2024-01-15T10:00:00Z",
     "documents": [
       {
-        "file_name": "contract.pdf",
-        "gcs_url": "https://storage.googleapis.com/...",
-        "content": "Extracted text...",
+        "file_name": "master_service_agreement.pdf",
+        "gcs_url": "https://storage.googleapis.com/bucket/abc123/master_service_agreement.pdf",
+        "content": "This Master Service Agreement (MSA) is entered into...",
         "file_type": "pdf",
-        "uploaded_at": "..."
+        "uploaded_at": "2024-01-15T11:00:00Z"
       }
     ]
   }
   ```
 
----
-### 6. **Analyse a Company (Unified Endpoint)**
+### 2. **Document Management**
 
-- **POST** `/api/companies/{company_id}/analyse`
-- **For General Analysis (Body):**  
-  ```json
-  {}
-  ```
-  or empty body
-- **For Dynamic Risk Analysis (Body):**
+#### Upload Document
+- **POST** `/api/companies/{company_id}/documents`
+- **Description**: Upload PDF or EML files for analysis
+- **Content-Type**: `multipart/form-data`
+- **Body**: Form data with `file` field
+- **Supported Formats**: PDF, EML (email files)
+- **Response**:
   ```json
   {
-    "risk_description": "New GDPR regulations require immediate data processing changes",
-    "risk_context": "*insert text from an email or link to a news article here*",
-    "risk_type": "regulatory"
+    "message": "File uploaded and processed successfully",
+    "document_id": "doc456",
+    "file_type": "pdf"
   }
   ```
-- **General Analysis Response:**  
+
+**Frontend Implementation Example:**
+```javascript
+const uploadDocument = async (companyId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const response = await fetch(`/api/companies/${companyId}/documents`, {
+    method: 'POST',
+    body: formData
+  });
+  
+  return response.json();
+};
+```
+
+### 3. **Risk Analysis**
+
+#### General Company Analysis
+- **POST** `/api/companies/{company_id}/analyse`
+- **Description**: Perform general risk analysis on company data
+- **Body**: Empty object or `{}`
+- **Response**:
   ```json
   {
+    "analysis_id": "analysis_789",
     "risk_factors": [
       {
-        "severity": "Low",
-        "risk_type": "Reputational Risk",
-        "affected_contracts": "contract.pdf",
-        "affected_clauses": "Clause 1.1",
+        "severity": "Medium",
+        "risk_type": "Operational Risk",
+        "specific_event": "Supply Chain Disruption",
+        "affected_contracts": "supplier_agreement.pdf",
+        "affected_clauses": "Force Majeure",
         "narrative": {
-          "solutions_in_contract": "The contract does have a clause that addresses this risk. 16.1",
-          "alternative_mitigations": "Do xyz to mitigate the risk.",
-          "monitoring_tasks": "Monitor the risk and report to the board every 3 months."
+          "solutions_in_contract": "Contract includes force majeure provisions.",
+          "alternative_mitigation_strategies": "Diversify suppliers and increase inventory.",
+          "monitoring_tasks": "Monitor supplier performance monthly."
         }
       }
     ],
     "available_data": {
-      "context_items": ["Acme is a global widget supplier."],
+      "context_items": ["Company context information"],
       "document_count": 3,
       "content_available": true,
       "news_available": true
     }
   }
   ```
-- **Dynamic Risk Analysis Response:**
+
+#### Dynamic Risk Analysis
+- **POST** `/api/companies/{company_id}/analyse`
+- **Description**: Analyze specific risk scenarios
+- **Body**:
   ```json
   {
+    "risk_description": "New GDPR regulations require immediate data processing changes",
+    "risk_context": "EU just announced stricter requirements affecting our customer data handling",
+    "risk_type": "regulatory"
+  }
+  ```
+- **Response**:
+  ```json
+  {
+    "analysis_id": "analysis_790",
     "risk_analysis": {
       "scenario": "New GDPR regulations require immediate data processing changes",
       "risk_level": "High",
-      "impact_assessment": "This regulatory risk could significantly impact Acme Corp's operations.",
-      "affected_areas": ["Contractual obligations", "Regulatory compliance", "Operational processes"]
+      "impact_assessment": "This regulatory risk represents an existential threat to company operations...",
+      "affected_areas": [
+        "Contractual obligations and SLA compliance",
+        "Customer relationship management and retention",
+        "Financial stability and cash flow"
+      ]
+    },
+    "news_analysis": {
+      "articles_found": 15,
+      "negative_sentiment_ratio": 0.4,
+      "trending_topics": ["GDPR compliance", "Data protection", "Regulatory changes"],
+      "market_context": "Found 15 relevant articles with 6 showing negative sentiment"
     },
     "company_specific_insights": {
       "relevant_contracts": 3,
       "context_alignment": "High",
-      "data_coverage": "Comprehensive"
+      "data_coverage": "Comprehensive",
+      "critical_contracts_identified": "Multiple customer contracts with data processing clauses",
+      "force_majeure_analysis": "Regulatory changes may trigger force majeure provisions"
     },
     "recommendations": [
-      "Immediate Legal Response: Engage outside counsel specializing in cloud infrastructure disputes...",
+      "Immediate Legal Response: Engage outside counsel specializing in data protection...",
       "Customer Communication Strategy: Develop a comprehensive communication plan...",
-      "Infrastructure Migration Planning: Immediately initiate parallel infrastructure deployment..."
+      "Compliance Planning: Immediately initiate GDPR compliance assessment..."
     ],
     "next_steps": [
       "Executive Crisis Management: Convene an emergency board meeting within 24 hours...",
@@ -192,157 +214,426 @@ fetch('/api/companies/abc123/documents', {
       "Regulatory and Compliance Review: Conduct immediate review of all regulatory obligations..."
     ],
     "ai_confidence": 0.92,
-    "analysis_timestamp": "2024-01-01T00:00:00Z"
+    "analysis_timestamp": "2024-01-15T12:00:00Z"
   }
   ```
 
----
+### 4. **Analysis Results**
 
-## Response Format Details
-
-### General Analysis Response Fields
-
-**`risk_factors`** - Array of identified risk factors:
-- `severity`: Risk level ("Low", "Medium", "High", "Critical")
-- `risk_type`: Category of risk ("Reputational Risk", "Operational Risk", "Financial Risk", etc.)
-- `affected_contracts`: Specific contracts impacted by this risk
-- `affected_clauses`: Specific contract clauses related to the risk
-- `narrative`: Detailed analysis including:
-  - `solutions_in_contract`: How the contract addresses (or fails to address) the risk
-  - `alternative_mitigations`: Suggested actions to mitigate the risk
-  - `monitoring_tasks`: Ongoing monitoring requirements
-
-**`available_data`** - Summary of data used in analysis:
-- `context_items`: Array of company context information
-- `document_count`: Number of documents analyzed
-- `content_available`: Boolean indicating if document content was available
-- `news_available`: Boolean indicating if news data was available
-
-### Dynamic Risk Analysis Response Fields
-
-**`risk_analysis`** - Core risk assessment:
-- `scenario`: Description of the specific risk scenario
-- `risk_level`: Overall risk level assessment
-- `impact_assessment`: Detailed impact analysis
-- `affected_areas`: Business areas impacted by the risk
-
-**`news_analysis`** - News sentiment and trend analysis:
-- `articles_found`: Number of relevant news articles
-- `negative_sentiment_ratio`: Proportion of negative sentiment articles
-- `trending_topics`: Key topics from recent news
-- `market_context`: Summary of market conditions
-
-**`company_specific_insights`** - Company-specific analysis:
-- `relevant_contracts`: Number of contracts relevant to the risk
-- `context_alignment`: How well company context aligns with the risk
-- `data_coverage`: Quality of available data for analysis
-- `critical_contracts_identified`: Specific contracts of concern
-- `force_majeure_analysis`: Analysis of force majeure implications
-
-**`recommendations`** - Detailed action recommendations with legal context
-
-**`next_steps`** - Immediate action items with executive-level guidance
-
-**`ai_confidence`** - Confidence score (0-1) for the analysis quality
-
-**`analysis_timestamp`** - When the analysis was performed
-
----
-
-## File Upload Tips
-
-- Use `FormData` for file uploads.
-- Only PDF and EML files are accepted.
-- The backend will extract and store the text content.
-
----
-
-## Error Handling
-
-- All errors are returned as JSON:
-  ```json
-  { "error": "Description of the error" }
-  ```
-- Check for HTTP status codes (e.g., 400, 404, 500).
-
----
-
-## CORS
-
-- If you run React on a different port (e.g., `localhost:3000`), you may need to enable CORS in the Flask backend for development.
-- Ask the backend team to add CORS support if you get CORS errors.
-
----
-
-## Example Workflow
-
-1. **Create a company**  
-   → Save the returned `company_id`
-2. **Add context**  
-   → POST more context as needed
-3. **Upload documents**  
-   → POST PDFs or EMLs
-4. **Get company data**  
-   → GET to display all info
-5. **Analyze company**  
-   → POST to `/analyse` and display results
-
----
-
-## Questions?
-
-- If you need new endpoints or changes, talk to the backend team.
-- For authentication, CORS, or deployment, coordinate with the backend.
-
-### 7. **Get Company Analyses**
-
+#### Get All Company Analyses
 - **GET** `/api/companies/{company_id}/analyses`
-- **Query Parameters:**
-  - `analysis_type`: Filter by type ("general" or "dynamic_risk")
-  - `limit`: Maximum number of results (default: 10)
-- **Response:**
+- **Description**: Retrieve all analysis results for a company
+- **Query Parameters**:
+  - `analysis_type`: Filter by "general" or "dynamic_risk"
+  - `limit`: Maximum results (default: 10)
+- **Response**:
   ```json
   [
     {
-      "id": "analysis_123",
+      "id": "analysis_789",
       "analysis_type": "dynamic_risk",
-      "payload": { ... },
+      "payload": {
+        "company_info": { ... },
+        "news_data": { ... },
+        "risk_scenario": { ... }
+      },
       "result": {
         "risk_analysis": { ... },
         "recommendations": [ ... ],
         "next_steps": [ ... ],
         "ai_confidence": 0.92,
-        "analysis_timestamp": "2024-01-01T00:00:00Z"
+        "analysis_timestamp": "2024-01-15T12:00:00Z"
       },
-      "timestamp": "2024-01-01T00:00:00Z",
-      "created_at": "2024-01-01T00:00:00Z"
+      "timestamp": "2024-01-15T12:00:00Z",
+      "created_at": "2024-01-15T12:00:00Z"
     }
   ]
   ```
 
----
-
-### 8. **Get Specific Analysis**
-
+#### Get Specific Analysis
 - **GET** `/api/companies/{company_id}/analyses/{analysis_id}`
-- **Response:**
+- **Description**: Retrieve a specific analysis result
+- **Response**:
   ```json
   {
-    "id": "analysis_123",
+    "id": "analysis_789",
     "analysis_type": "dynamic_risk",
     "payload": {
-      "company_info": { ... },
-      "news_data": { ... },
-      "risk_scenario": { ... }
+      "company_info": {
+        "name": "Acme Corp",
+        "context": ["Company context"],
+        "documents": [
+          {
+            "file_name": "contract.pdf",
+            "content": "Contract content...",
+            "file_type": "pdf"
+          }
+        ]
+      },
+      "news_data": {
+        "articles_summary": [
+          {
+            "title": "News title",
+            "description": "News description",
+            "content": "News content",
+            "url": "https://example.com",
+            "source": "Reuters",
+            "date": "2024-01-15T10:00:00Z",
+            "sentiment": "negative"
+          }
+        ]
+      },
+      "risk_scenario": {
+        "description": "Risk description",
+        "context": "Risk context",
+        "type": "regulatory",
+        "timestamp": "2024-01-15T12:00:00Z"
+      }
     },
     "result": {
       "risk_analysis": { ... },
       "recommendations": [ ... ],
       "next_steps": [ ... ],
       "ai_confidence": 0.92,
-      "analysis_timestamp": "2024-01-01T00:00:00Z"
+      "analysis_timestamp": "2024-01-15T12:00:00Z"
     },
-    "timestamp": "2024-01-01T00:00:00Z",
-    "created_at": "2024-01-01T00:00:00Z"
+    "timestamp": "2024-01-15T12:00:00Z",
+    "created_at": "2024-01-15T12:00:00Z"
   }
   ```
+
+---
+
+## Frontend Implementation Examples
+
+### React Hook for API Calls
+
+```javascript
+import { useState, useCallback } from 'react';
+
+const useBusinessRiskAPI = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const apiCall = useCallback(async (endpoint, options = {}) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch(`/api${endpoint}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...options.headers
+        },
+        ...options
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      return await response.json();
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { apiCall, loading, error };
+};
+```
+
+### Company Management Component
+
+```javascript
+import React, { useState, useEffect } from 'react';
+import { useBusinessRiskAPI } from './hooks/useBusinessRiskAPI';
+
+const CompanyManager = () => {
+  const [companies, setCompanies] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const { apiCall, loading, error } = useBusinessRiskAPI();
+
+  // Load companies
+  useEffect(() => {
+    const loadCompanies = async () => {
+      try {
+        const data = await apiCall('/companies');
+        setCompanies(data);
+      } catch (err) {
+        console.error('Failed to load companies:', err);
+      }
+    };
+    loadCompanies();
+  }, [apiCall]);
+
+  // Add company
+  const addCompany = async (name, context) => {
+    try {
+      const result = await apiCall('/companies', {
+        method: 'POST',
+        body: JSON.stringify({ name, context })
+      });
+      
+      // Reload companies
+      const updatedCompanies = await apiCall('/companies');
+      setCompanies(updatedCompanies);
+      
+      return result.company_id;
+    } catch (err) {
+      console.error('Failed to add company:', err);
+    }
+  };
+
+  return (
+    <div>
+      <h2>Companies</h2>
+      {loading && <p>Loading...</p>}
+      {error && <p>Error: {error}</p>}
+      
+      <ul>
+        {companies.map(company => (
+          <li key={company.id} onClick={() => setSelectedCompany(company.id)}>
+            {company.name}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+```
+
+### Document Upload Component
+
+```javascript
+import React, { useState } from 'react';
+import { useBusinessRiskAPI } from './hooks/useBusinessRiskAPI';
+
+const DocumentUpload = ({ companyId }) => {
+  const [uploading, setUploading] = useState(false);
+  const { apiCall, error } = useBusinessRiskAPI();
+
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      await apiCall(`/companies/${companyId}/documents`, {
+        method: 'POST',
+        headers: {}, // Let browser set Content-Type for FormData
+        body: formData
+      });
+      
+      alert('Document uploaded successfully!');
+    } catch (err) {
+      console.error('Upload failed:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <h3>Upload Document</h3>
+      <input
+        type="file"
+        accept=".pdf,.eml"
+        onChange={handleFileUpload}
+        disabled={uploading}
+      />
+      {uploading && <p>Uploading...</p>}
+      {error && <p>Error: {error}</p>}
+    </div>
+  );
+};
+```
+
+### Risk Analysis Component
+
+```javascript
+import React, { useState } from 'react';
+import { useBusinessRiskAPI } from './hooks/useBusinessRiskAPI';
+
+const RiskAnalysis = ({ companyId }) => {
+  const [analysisType, setAnalysisType] = useState('general');
+  const [riskData, setRiskData] = useState({});
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const { apiCall, loading, error } = useBusinessRiskAPI();
+
+  const runAnalysis = async () => {
+    try {
+      let body = {};
+      
+      if (analysisType === 'dynamic_risk') {
+        body = {
+          risk_description: riskData.description,
+          risk_context: riskData.context,
+          risk_type: riskData.type
+        };
+      }
+      
+      const result = await apiCall(`/companies/${companyId}/analyse`, {
+        method: 'POST',
+        body: JSON.stringify(body)
+      });
+      
+      setAnalysisResult(result);
+    } catch (err) {
+      console.error('Analysis failed:', err);
+    }
+  };
+
+  return (
+    <div>
+      <h3>Risk Analysis</h3>
+      
+      <div>
+        <label>
+          Analysis Type:
+          <select value={analysisType} onChange={(e) => setAnalysisType(e.target.value)}>
+            <option value="general">General Analysis</option>
+            <option value="dynamic_risk">Dynamic Risk Analysis</option>
+          </select>
+        </label>
+      </div>
+
+      {analysisType === 'dynamic_risk' && (
+        <div>
+          <input
+            placeholder="Risk Description"
+            value={riskData.description || ''}
+            onChange={(e) => setRiskData({...riskData, description: e.target.value})}
+          />
+          <input
+            placeholder="Risk Context"
+            value={riskData.context || ''}
+            onChange={(e) => setRiskData({...riskData, context: e.target.value})}
+          />
+          <input
+            placeholder="Risk Type"
+            value={riskData.type || ''}
+            onChange={(e) => setRiskData({...riskData, type: e.target.value})}
+          />
+        </div>
+      )}
+
+      <button onClick={runAnalysis} disabled={loading}>
+        {loading ? 'Analyzing...' : 'Run Analysis'}
+      </button>
+
+      {error && <p>Error: {error}</p>}
+
+      {analysisResult && (
+        <div>
+          <h4>Analysis Results</h4>
+          <pre>{JSON.stringify(analysisResult, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+---
+
+## Error Handling
+
+### HTTP Status Codes
+- **200**: Success
+- **400**: Bad Request (invalid data)
+- **404**: Not Found (company/analysis not found)
+- **500**: Internal Server Error
+
+### Error Response Format
+```json
+{
+  "error": "Description of the error"
+}
+```
+
+### Frontend Error Handling
+```javascript
+const handleAPIError = (error, context) => {
+  if (error.status === 404) {
+    console.error(`${context} not found`);
+    // Handle not found
+  } else if (error.status === 400) {
+    console.error(`Invalid data: ${error.message}`);
+    // Handle validation errors
+  } else {
+    console.error(`API error: ${error.message}`);
+    // Handle general errors
+  }
+};
+```
+
+---
+
+## Best Practices
+
+### 1. **State Management**
+- Store company IDs and analysis IDs in your app state
+- Cache analysis results to avoid unnecessary API calls
+- Implement loading states for better UX
+
+### 2. **File Uploads**
+- Validate file types before upload (PDF, EML only)
+- Show upload progress
+- Handle large files appropriately
+
+### 3. **Error Handling**
+- Implement retry logic for failed requests
+- Show user-friendly error messages
+- Log errors for debugging
+
+### 4. **Performance**
+- Implement pagination for large datasets
+- Use query parameters to filter results
+- Cache frequently accessed data
+
+### 5. **Security**
+- Validate all user inputs
+- Sanitize data before sending to API
+- Implement proper CORS configuration
+
+---
+
+## Development Workflow
+
+### 1. **Setup**
+```bash
+# Start the backend server
+cd business-risk
+poetry run python app.py
+```
+
+### 2. **Testing**
+- Use the provided Postman collection for API testing
+- Test all endpoints with various data scenarios
+- Verify error handling
+
+### 3. **Integration**
+- Start with simple API calls
+- Gradually add complex features
+- Test with real data
+
+---
+
+## Support
+
+For questions or issues:
+- Check the API documentation
+- Review error messages carefully
+- Test with Postman collection
+- Contact the backend team
+
+---
+
+**Note**: This API is designed to be simple and flexible. All responses are JSON, and the structure is consistent across endpoints. 
