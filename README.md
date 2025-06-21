@@ -95,3 +95,8 @@ be stored in firebase, enabling us to ingest a lot of context about a given comp
   - **For general analysis**: Send empty body or `{}`
   - **For dynamic risk analysis**: Send `{"risk_description": "Description of the risk", "risk_context": "Additional context", "risk_type": "regulatory"}`
   - Returns analysis based on company context, document content, and relevant news.
+- `GET /api/companies/<company_id>/analyses`: Get all analysis results for a company.
+  - Query parameters: `analysis_type` (filter by type), `limit` (max results, default: 10)
+  - Returns list of analysis results ordered by timestamp (newest first).
+- `GET /api/companies/<company_id>/analyses/<analysis_id>`: Get a specific analysis result by ID.
+  - Returns detailed analysis data including payload and results.

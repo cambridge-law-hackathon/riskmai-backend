@@ -293,3 +293,56 @@ fetch('/api/companies/abc123/documents', {
 
 - If you need new endpoints or changes, talk to the backend team.
 - For authentication, CORS, or deployment, coordinate with the backend.
+
+### 7. **Get Company Analyses**
+
+- **GET** `/api/companies/{company_id}/analyses`
+- **Query Parameters:**
+  - `analysis_type`: Filter by type ("general" or "dynamic_risk")
+  - `limit`: Maximum number of results (default: 10)
+- **Response:**
+  ```json
+  [
+    {
+      "id": "analysis_123",
+      "analysis_type": "dynamic_risk",
+      "payload": { ... },
+      "result": {
+        "risk_analysis": { ... },
+        "recommendations": [ ... ],
+        "next_steps": [ ... ],
+        "ai_confidence": 0.92,
+        "analysis_timestamp": "2024-01-01T00:00:00Z"
+      },
+      "timestamp": "2024-01-01T00:00:00Z",
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  ]
+  ```
+
+---
+
+### 8. **Get Specific Analysis**
+
+- **GET** `/api/companies/{company_id}/analyses/{analysis_id}`
+- **Response:**
+  ```json
+  {
+    "id": "analysis_123",
+    "analysis_type": "dynamic_risk",
+    "payload": {
+      "company_info": { ... },
+      "news_data": { ... },
+      "risk_scenario": { ... }
+    },
+    "result": {
+      "risk_analysis": { ... },
+      "recommendations": [ ... ],
+      "next_steps": [ ... ],
+      "ai_confidence": 0.92,
+      "analysis_timestamp": "2024-01-01T00:00:00Z"
+    },
+    "timestamp": "2024-01-01T00:00:00Z",
+    "created_at": "2024-01-01T00:00:00Z"
+  }
+  ```

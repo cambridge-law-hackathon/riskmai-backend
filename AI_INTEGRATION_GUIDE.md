@@ -1,34 +1,32 @@
-git# AI Integration Guide for Business Risk Analysis
+# AI Integration Guide for Business Risk Analysis
 
 ## Overview
 
-This guide provides comprehensive documentation for integrating AI services with the Business Risk Analysis platform. The system offers a unified analysis endpoint that can handle both general company risk assessment and dynamic risk scenario analysis.
+This guide explains how to integrate your AI service with the Business Risk Analysis platform. The system sends company data, documents, and news to your AI service and stores the results.
 
 ## Quick Start
 
-### Base URL
-- **Development**: `http://localhost:5001`
-- **Production**: `https://your-production-domain.com`
+### Environment Variable
+Set your AI service endpoint:
+```bash
+export AI_ENDPOINT_URL="https://your-ai-service.com/analyze"
+```
 
-### Unified Analysis Endpoint
+### API Endpoint
 **URL**: `POST /api/companies/{company_id}/analyse`
 
-This single endpoint handles both general and dynamic risk analysis based on the request payload.
+This endpoint sends data to your AI service and stores the results.
 
-## API Endpoints
+## Request Format
 
-### 1. Unified Analysis Endpoint
-
-**URL**: `POST /api/companies/{company_id}/analyse`
-
-#### General Analysis Request
+### General Analysis
 ```bash
 curl -X POST "http://localhost:5001/api/companies/company_123/analyse" \
   -H "Content-Type: application/json" \
   -d '{}'
 ```
 
-#### Dynamic Risk Analysis Request
+### Dynamic Risk Analysis
 ```bash
 curl -X POST "http://localhost:5001/api/companies/company_123/analyse" \
   -H "Content-Type: application/json" \
@@ -39,35 +37,9 @@ curl -X POST "http://localhost:5001/api/companies/company_123/analyse" \
   }'
 ```
 
-### 2. Data Preparation Endpoint
+## Data Structure Sent to Your AI Service
 
-**URL**: `POST /api/companies/{company_id}/send-to-ai`
-
-This endpoint prepares comprehensive company data for external AI analysis.
-
-```bash
-curl -X POST "http://localhost:5001/api/companies/company_123/send-to-ai" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "ai_endpoint_url": "https://your-ai-service.com/analyze"
-  }'
-```
-
-## Data Structures
-
-### Request Payload for Dynamic Risk Analysis
-
-```json
-{
-  "risk_description": "New GDPR regulations require immediate data processing changes",
-  "risk_context": "The company processes EU customer data and may be affected by new regulations",
-  "risk_type": "regulatory"
-}
-```
-
-### Internal Analysis Payload Structure
-
-The system uses this internal structure when processing analysis requests:
+Your AI service will receive this JSON payload:
 
 ```json
 {
@@ -106,79 +78,23 @@ The system uses this internal structure when processing analysis requests:
 
 **Note**: The `risk_scenario` field is only included for dynamic risk analysis requests.
 
-### Complete Data Structure (send-to-ai endpoint)
+## Expected Response from Your AI Service
 
-Your AI service will receive this comprehensive payload:
+Your AI service should return a JSON response. The format is flexible - return whatever structure makes sense for your analysis.
 
-```json
-{
-  "company_info": {
-    "id": "company_123",
-    "name": "Tesla Inc",
-    "industry": "Automotive",
-    "context": "Electric vehicle manufacturer",
-    "documents": [
-      {
-        "file_name": "master_service_agreement.pdf",
-        "file_type": "pdf",
-        "content": "This Master Service Agreement (MSA) is entered into as of January 15, 2024...",
-        "upload_date": "2024-01-15T10:00:00Z",
-        "file_size": 2048576
-      }
-    ],
-    "document_summary": {
-      "total_documents": 4,
-      "total_content_length": 51200,
-      "document_types": ["pdf", "eml"]
-    }
-  },
-  "news_data": {
-    "total_results": 20,
-    "search_metadata": {
-      "api_version": "v1",
-      "timestamp": "2024-01-15T12:00:00Z",
-      "status": "success"
-    },
-    "articles_summary": [
-      {
-        "title": "Oil prices surge as Iran tensions escalate in Middle East",
-        "description": "Global oil markets react to rising tensions between Iran and Western powers...",
-        "content": "Oil prices surged to their highest level in months as tensions between Iran and Western powers escalated...",
-        "url": "https://www.reuters.com/business/energy/oil-prices-surge-iran-tensions-escalate-2024-01-15/",
-        "source": "Reuters",
-        "published_date": "2024-01-15T10:00:00Z",
-        "sentiment": "negative"
-      }
-    ]
-  },
-  "analysis_request": {
-    "timestamp": "2024-01-15T12:00:00Z",
-    "analysis_scope": [
-      "regulatory_compliance",
-      "operational_risks",
-      "financial_exposure",
-      "reputation_management",
-      "legal_liabilities"
-    ]
-  }
-}
-```
-
-## Expected Response Formats
-
-### General Analysis Response
-
+### Example Response for General Analysis
 ```json
 {
   "risk_factors": [
     {
       "severity": "Low",
       "risk_type": "Reputational Risk",
+      "specific_event": "Middle East War",
       "affected_contracts": "contract.pdf",
       "affected_clauses": "Clause 1.1",
       "narrative": {
         "solutions_in_contract": "The contract does have a clause that addresses this risk. 16.1",
-        "alternative_mitigations": "Do xyz to mitigate the risk.",
+        "alternative_mitigation_strategies": "Do xyz to mitigate the risk.",
         "monitoring_tasks": "Monitor the risk and report to the board every 3 months."
       }
     }
@@ -192,8 +108,7 @@ Your AI service will receive this comprehensive payload:
 }
 ```
 
-### Dynamic Risk Analysis Response
-
+### Example Response for Dynamic Risk Analysis
 ```json
 {
   "risk_analysis": {
@@ -212,13 +127,6 @@ Your AI service will receive this comprehensive payload:
     "trending_topics": ["GDPR compliance", "Data protection", "Regulatory changes"],
     "market_context": "Found 15 relevant articles with 6 showing negative sentiment"
   },
-  "company_specific_insights": {
-    "relevant_contracts": 3,
-    "context_alignment": "High",
-    "data_coverage": "Comprehensive",
-    "critical_contracts_identified": "Multiple customer contracts with data processing clauses",
-    "force_majeure_analysis": "Regulatory changes may trigger force majeure provisions"
-  },
   "recommendations": [
     "Immediate Legal Response: Engage outside counsel specializing in data protection...",
     "Customer Communication Strategy: Develop a comprehensive communication plan...",
@@ -234,261 +142,112 @@ Your AI service will receive this comprehensive payload:
 }
 ```
 
-## Integration Examples
+## Integration Example
 
-### Python Integration
-
+### Python AI Service
 ```python
-import requests
+from flask import Flask, request, jsonify
 import json
-from typing import Optional, Dict, Any
 
-class BusinessRiskAPI:
-    def __init__(self, base_url: str = "http://localhost:5001"):
-        self.base_url = base_url.rstrip('/')
+app = Flask(__name__)
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    data = request.json
     
-    def analyze_company_general(self, company_id: str) -> Dict[str, Any]:
-        """Perform general company risk analysis"""
-        url = f"{self.base_url}/api/companies/{company_id}/analyse"
-        
-        response = requests.post(
-            url,
-            json={},
-            headers={"Content-Type": "application/json"}
-        )
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"Failed to analyze company: {response.text}")
+    # Extract data
+    company_name = data['company_info']['name']
+    documents = data['company_info']['documents']
+    news_articles = data['news_data']['articles_summary']
     
-    def analyze_dynamic_risk(
-        self, 
-        company_id: str, 
-        risk_description: str, 
-        risk_context: str = "", 
-        risk_type: str = "unknown"
-    ) -> Dict[str, Any]:
-        """Perform dynamic risk analysis for a specific scenario"""
-        url = f"{self.base_url}/api/companies/{company_id}/analyse"
+    # Check if this is a dynamic risk analysis
+    is_dynamic_risk = 'risk_scenario' in data
+    
+    if is_dynamic_risk:
+        risk_description = data['risk_scenario']['description']
+        risk_type = data['risk_scenario']['type']
         
-        payload = {
-            "risk_description": risk_description,
-            "risk_context": risk_context,
-            "risk_type": risk_type
+        # Your AI analysis logic here
+        result = {
+            "risk_analysis": {
+                "scenario": risk_description,
+                "risk_level": "High",
+                "impact_assessment": f"This {risk_type} risk could significantly impact {company_name}.",
+                "affected_areas": ["Operations", "Compliance", "Finance"]
+            },
+            "recommendations": [
+                "Immediate action required",
+                "Review all contracts",
+                "Consult legal counsel"
+            ],
+            "ai_confidence": 0.85
         }
-        
-        response = requests.post(
-            url,
-            json=payload,
-            headers={"Content-Type": "application/json"}
-        )
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"Failed to analyze dynamic risk: {response.text}")
-    
-    def prepare_data_for_ai(
-        self, 
-        company_id: str, 
-        ai_endpoint_url: str
-    ) -> Dict[str, Any]:
-        """Prepare comprehensive company data for external AI analysis"""
-        url = f"{self.base_url}/api/companies/{company_id}/send-to-ai"
-        
-        payload = {"ai_endpoint_url": ai_endpoint_url}
-        
-        response = requests.post(
-            url,
-            json=payload,
-            headers={"Content-Type": "application/json"}
-        )
-        
-        if response.status_code == 200:
-            return response.json()
-        else:
-            raise Exception(f"Failed to prepare data: {response.text}")
-
-# Example usage
-if __name__ == "__main__":
-    api = BusinessRiskAPI()
-    company_id = "company_123"
-    
-    try:
+    else:
         # General analysis
-        general_result = api.analyze_company_general(company_id)
-        print("General Analysis:", json.dumps(general_result, indent=2))
-        
-        # Dynamic risk analysis
-        dynamic_result = api.analyze_dynamic_risk(
-            company_id,
-            "New GDPR regulations require immediate data processing changes",
-            "The company processes EU customer data and may be affected by new regulations",
-            "regulatory"
-        )
-        print("Dynamic Risk Analysis:", json.dumps(dynamic_result, indent=2))
-        
-        # Prepare data for external AI
-        ai_data = api.prepare_data_for_ai(
-            company_id,
-            "https://your-ai-service.com/analyze"
-        )
-        print("AI Data Prepared:", json.dumps(ai_data, indent=2))
-        
-    except Exception as e:
-        print(f"Error: {e}")
+        result = {
+            "risk_factors": [
+                {
+                    "severity": "Medium",
+                    "risk_type": "Operational Risk",
+                    "specific_event": "Supply Chain Disruption",
+                    "affected_contracts": "supplier_agreement.pdf",
+                    "affected_clauses": "Force Majeure",
+                    "narrative": {
+                        "solutions_in_contract": "Contract includes force majeure provisions.",
+                        "alternative_mitigation_strategies": "Diversify suppliers and increase inventory.",
+                        "monitoring_tasks": "Monitor supplier performance monthly."
+                    }
+                }
+            ],
+            "available_data": {
+                "context_items": data['company_info']['context'],
+                "document_count": len(documents),
+                "content_available": True,
+                "news_available": len(news_articles) > 0
+            }
+        }
+    
+    return jsonify(result)
+
+if __name__ == '__main__':
+    app.run(port=5002)
 ```
 
-### JavaScript/Node.js Integration
+## Requirements
 
-```javascript
-class BusinessRiskAPI {
-    constructor(baseUrl = 'http://localhost:5001') {
-        this.baseUrl = baseUrl.replace(/\/$/, '');
-    }
-    
-    async analyzeCompanyGeneral(companyId) {
-        const response = await fetch(`${this.baseUrl}/api/companies/${companyId}/analyse`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({})
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to analyze company: ${response.statusText}`);
-        }
-        
-        return response.json();
-    }
-    
-    async analyzeDynamicRisk(companyId, riskDescription, riskContext = '', riskType = 'unknown') {
-        const payload = {
-            risk_description: riskDescription,
-            risk_context: riskContext,
-            risk_type: riskType
-        };
-        
-        const response = await fetch(`${this.baseUrl}/api/companies/${companyId}/analyse`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to analyze dynamic risk: ${response.statusText}`);
-        }
-        
-        return response.json();
-    }
-    
-    async prepareDataForAI(companyId, aiEndpointUrl) {
-        const response = await fetch(`${this.baseUrl}/api/companies/${companyId}/send-to-ai`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ ai_endpoint_url: aiEndpointUrl })
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to prepare data: ${response.statusText}`);
-        }
-        
-        return response.json();
-    }
-}
-
-// Example usage
-async function main() {
-    const api = new BusinessRiskAPI();
-    const companyId = 'company_123';
-    
-    try {
-        // General analysis
-        const generalResult = await api.analyzeCompanyGeneral(companyId);
-        console.log('General Analysis:', JSON.stringify(generalResult, null, 2));
-        
-        // Dynamic risk analysis
-        const dynamicResult = await api.analyzeDynamicRisk(
-            companyId,
-            'New GDPR regulations require immediate data processing changes',
-            'The company processes EU customer data and may be affected by new regulations',
-            'regulatory'
-        );
-        console.log('Dynamic Risk Analysis:', JSON.stringify(dynamicResult, null, 2));
-        
-    } catch (error) {
-        console.error('Error:', error.message);
-    }
-}
-
-main();
-```
-
-## Analysis Guidelines
-
-### Document Analysis
-- **Extract key clauses** from legal documents
-- **Identify risk triggers** and liability exposures
-- **Assess compliance gaps** against industry standards
-- **Evaluate contractual obligations** and penalties
-
-### News Analysis
-- **Analyze sentiment trends** across articles
-- **Identify emerging risks** from current events
-- **Assess market impact** on company operations
-- **Connect news events** to company-specific risks
-
-### Risk Scoring
-- **Quantify risk levels** (Low, Medium, High, Critical)
-- **Prioritize risks** by impact and probability
-- **Provide confidence scores** for analysis
-- **Include uncertainty factors**
-
-## Error Handling
-
-Your AI service should handle these scenarios:
-
-1. **Missing Data**: Gracefully handle missing documents or news articles
-2. **Invalid Content**: Process documents with extraction errors
-3. **API Failures**: Continue analysis with available data
-4. **Large Payloads**: Handle large document collections efficiently
-
-## Performance Requirements
-
-- **Response Time**: Target <30 seconds for analysis
+### Performance
+- **Response Time**: <30 seconds
 - **Payload Size**: Handle up to 50MB of document content
-- **Scalability**: Support concurrent analysis requests
-- **Reliability**: 99.9% uptime for analysis service
+- **Availability**: 99.9% uptime
 
-## Security Considerations
+### Error Handling
+- Return HTTP 200 with JSON response on success
+- Return HTTP 500 with error message on failure
+- Handle malformed requests gracefully
 
-- **Data Privacy**: Ensure secure handling of company information
-- **Document Security**: Protect sensitive legal documents
-- **API Security**: Use secure communication protocols
-- **Data Retention**: Follow data retention policies
+### Security
+- Use HTTPS in production
+- Validate input data
+- Implement rate limiting if needed
 
 ## Testing
 
 Test your AI service with:
 
-1. **Sample Company**: Use the provided example data
-2. **Edge Cases**: Empty documents, missing news, large payloads
-3. **Error Scenarios**: Invalid data, API failures
-4. **Performance**: Large document collections
+1. **General Analysis**: Send empty payload `{}`
+2. **Dynamic Risk**: Send risk scenario data
+3. **Edge Cases**: Empty documents, missing news
+4. **Large Payloads**: Many documents and articles
 
-## Support
+## What Happens Next
 
-For technical questions or integration issues:
-- **Documentation**: This guide and API documentation
-- **Testing**: Use the provided example endpoints
-- **Development**: Start with mock data for testing
+1. **Data Sent**: Your AI service receives company data, documents, and news
+2. **Analysis Performed**: Your AI service analyzes the data
+3. **Results Stored**: The platform stores your analysis results in the database
+4. **Response Returned**: Results are returned to the user with an analysis ID
+
+The analysis results are stored in the database and can be retrieved later using the analysis ID.
 
 ---
 
-**Note**: This integration enables comprehensive business risk analysis by combining company-specific data, legal documents, and real-time news to provide actionable risk insights. 
+**Note**: This integration is simple and flexible. Your AI service can return any JSON structure that makes sense for your analysis. 

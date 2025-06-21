@@ -109,4 +109,107 @@ def get_all_companies():
             })
         return companies, None
     except Exception as e:
+        return None, str(e)
+
+
+def store_analysis_result(company_id, analysis_type, payload, result, timestamp):
+    """
+    Store analysis results in the database.
+    
+    Args:
+        company_id: ID of the company
+        analysis_type: Type of analysis ("general" or "dynamic_risk")
+        payload: The data sent to the AI service
+        result: The response from the AI service
+        timestamp: When the analysis was performed
+    
+    Returns:
+        tuple: (analysis_id, error)
+    """
+    if not db:
+        return None, "Firestore is not initialized."
+    try:
+        analysis_ref = db.collection('companies').document(company_id).collection('analyses').document()
+        analysis_ref.set({
+            'analysis_type': analysis_type,
+            'payload': payload,
+            'result': result,
+            'timestamp': timestamp,
+            'created_at': firestore.SERVER_TIMESTAMP
+        })
+        return analysis_ref.id, None
+    except Exception as e:
+        return None, str(e)
+
+
+def get_company_analyses(company_id, analysis_id=None, analysis_type=None, limit=10):
+    """
+    Get analysis results for a company.
+    
+    Args:
+        company_id: ID of the company
+        analysis_id: Optional specific analysis ID
+        analysis_type: Optional filter by analysis type
+        limit: Maximum number of results to return
+    
+    Returns:
+        tuple: (analyses_list, error)
+    """
+    if not db:
+        return None, "Firestore is not initialized."
+    try:
+        analyses_ref = db.collection('companies').document(company_id).collection('analyses')
+        
+        # Build query
+        query = analyses_ref
+        
+        if analysis_type:
+            query = query.where('analysis_type', '==', analysis_type)
+        
+        # Order by timestamp (newest first)
+        query = query.order_by('timestamp', direction=firestore.Query.DESCENDING)
+        
+        # Limit results
+        query = query.limit(limit)
+        
+        analyses = []
+        for doc in query.stream():
+            analysis_data = doc.to_dict()
+            analysis_data['id'] = doc.id
+            analyses.append(analysis_data)
+        
+        # If specific analysis_id requested, filter results
+        if analysis_id:
+            analyses = [a for a in analyses if a['id'] == analysis_id]
+        
+        return analyses, None
+    except Exception as e:
+        return None, str(e)
+
+
+def get_analysis_by_id(company_id, analysis_id):
+    """
+    Get a specific analysis result by ID.
+    
+    Args:
+        company_id: ID of the company
+        analysis_id: ID of the analysis
+    
+    Returns:
+        tuple: (analysis_data, error)
+    """
+    if not db:
+        return None, "Firestore is not initialized."
+    try:
+        analysis_ref = db.collection('companies').document(company_id).collection('analyses').document(analysis_id)
+        analysis_snapshot = analysis_ref.get()
+        
+        if not analysis_snapshot.exists:
+            return None, None  # Analysis not found
+        
+        analysis_data = analysis_snapshot.to_dict()
+        analysis_data['id'] = analysis_snapshot.id
+        
+        return analysis_data, None
+    except Exception as e:
         return None, str(e) 
