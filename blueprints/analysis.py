@@ -84,21 +84,43 @@ def analyse_company(company_id):
     
     # Add risk scenario data if this is a dynamic risk analysis
     if is_dynamic_risk:
-        analysis_payload["risk_scenario"] = {
-            "description": data.get('risk_description'),
-            "context": data.get('risk_context', ''),
-            "type": data.get('risk_type', 'unknown'),
-            "timestamp": datetime.now().isoformat()
-        }
 
-    analysis_payload = json.dumps(analysis_payload)
+        analysis_payload = json.dumps(analysis_payload)
+        client = Client("Baon2024/dynamic_question")
+        result = client.predict(
+            articles=analysis_payload,
+            risk_factor=data.get('risk_description'),
+            api_name="/predict"
+        )
+        print(result)
 
-    client = Client("Baon2024/hackathon")
-    result = client.predict(
-		articles=analysis_payload,
-		api_name="/predict"
-    )
-    print(result)
+        # Store analysis results in database
+        analysis_id, error = firebase_service.store_analysis_result(
+            company_id=company_id,
+            analysis_type="dynamic_risk" if is_dynamic_risk else "general",
+            payload=analysis_payload,
+            result=result,
+            timestamp=datetime.now().isoformat()
+        )
+        
+        if error:
+            return jsonify({"error": f"Failed to store analysis: {error}"}), 500
+        
+        # Add analysis ID to response
+        result = {"message": result}
+        result["analysis_id"] = analysis_id
+        
+        return jsonify(result), 200
+
+    else:
+        analysis_payload = json.dumps(analysis_payload)
+
+        client = Client("Baon2024/hackathon")
+        result = client.predict(
+            articles=analysis_payload,
+            api_name="/predict"
+        )
+        print(result)
     
     # test_payload = {
     #     "analysis_id": "1",
