@@ -145,6 +145,48 @@ fetch('/api/companies/abc123/documents', {
 
 ---
 
+### 7. **Analyse Dynamic Risk**
+
+- **POST** `/api/companies/{company_id}/dynamic-risk`
+- **Body:**
+  ```json
+  {
+    "risk_description": "New GDPR regulations require immediate data processing changes",
+    "risk_context": "*insert text from an email or link to a news article here*",
+    "risk_type": "regulatory"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "risk_analysis": {
+      "scenario": "New GDPR regulations require immediate data processing changes",
+      "risk_level": "High",
+      "impact_assessment": "This regulatory risk could significantly impact Acme Corp's operations.",
+      "affected_areas": ["Contractual obligations", "Regulatory compliance", "Operational processes"]
+    },
+    "company_specific_insights": {
+      "relevant_contracts": 3,
+      "context_alignment": "High",
+      "data_coverage": "Comprehensive"
+    },
+    "recommendations": [
+      "Immediately review contracts for force majeure clauses",
+      "Assess regulatory reporting requirements",
+      "Evaluate operational continuity plans"
+    ],
+    "next_steps": [
+      "Schedule emergency board meeting",
+      "Review insurance coverage",
+      "Update risk register"
+    ],
+    "ai_confidence": 0.85,
+    "analysis_timestamp": "2024-01-01T00:00:00Z"
+  }
+  ```
+
+---
+
 ## File Upload Tips
 
 - Use `FormData` for file uploads.

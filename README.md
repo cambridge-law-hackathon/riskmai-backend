@@ -91,5 +91,8 @@ This is a Flask-based backend for a legal intelligence tool designed to help Gen
 be stored in firebase, enabling us to ingest a lot of context about a given company and their risk profile.
   - Body: `multipart/form-data` with a `file` field.
   - Supported file types: PDF and EML (email) files
-- `POST /api/companies/<company_id>/analyse`: Analyze the company's risk profile. This will interact with the AI agent, sending the written context and document context for it to analyse that context for this given company with relevant news.
+- `POST /api/companies/<company_id>/analyze`: Analyze the company's risk profile. This will interact with the AI agent, sending the written context and document context for it to analyse that context for this given company with relevant news.
   - Returns analysis based on company context and document content.
+- `POST /api/companies/<company_id>/dynamic-risk`: Analyze a specific dynamic risk scenario for a company.
+  - Body: `{"risk_description": "Description of the risk", "risk_context": "Additional context", "risk_type": "regulatory"}`
+  - Combines user-provided risk information with company context and documents for AI analysis of more dynamic risks.
