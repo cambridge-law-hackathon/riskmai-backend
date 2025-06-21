@@ -94,12 +94,33 @@ def analyse_company(company_id):
         )
         print(result)
 
+        # Convert result to dict if it's a string
+        if isinstance(result, str):
+            try:
+                result_dict = json.loads(result)
+            except json.JSONDecodeError as e:
+                print(f"JSON decode error for dynamic risk: {e}")
+                print(f"Raw result was: {result}")
+                # If it's not JSON, treat it as plain text result
+                final_result = result
+                result_dict = None
+        else:
+            result_dict = result if isinstance(result, dict) else {"result": str(result)}
+
+        # Extract just the "result" field if it exists
+        if result_dict is not None:
+            if "result" in result_dict:
+                final_result = result_dict["result"]
+            else:
+                final_result = result_dict
+        # final_result already set for string case above
+
         # Store analysis results in database
         analysis_id, error = firebase_service.store_analysis_result(
             company_id=company_id,
-            analysis_type="dynamic_risk" if is_dynamic_risk else "general",
+            analysis_type="dynamic_risk",
             payload=analysis_payload,
-            result=result,
+            result=final_result,
             timestamp=datetime.now().isoformat()
         )
         
@@ -107,10 +128,9 @@ def analyse_company(company_id):
             return jsonify({"error": f"Failed to store analysis: {error}"}), 500
         
         # Add analysis ID to response
-        result = {"message": result}
-        result["analysis_id"] = analysis_id
+        response_data = {"result": final_result, "analysis_id": analysis_id}
         
-        return jsonify(result), 200
+        return jsonify(response_data), 200
 
     else:
         analysis_payload = json.dumps(analysis_payload)
