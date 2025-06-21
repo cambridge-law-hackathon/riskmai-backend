@@ -4,6 +4,8 @@ from services.news_service import NewsAPIService
 from datetime import datetime
 import requests
 import os
+from gradio_client import Client
+import json
 
 analysis_bp = Blueprint('analysis', __name__)
 
@@ -65,7 +67,17 @@ def analyse_company(company_id):
                     "source": article.get("source"),
                     "date": article.get("published_date"),
                     "sentiment": article.get("sentiment")
-                } for article in news_data.get("articles", [])[:10]  # Top 10 articles
+                } for article in news_data.get("articles", [])[:3]  # Top 10 articles
+            ]
+        },
+        "analysis_request": {
+            "timestamp": "2024-01-15T12:00:00Z",
+            "analysis_scope": [
+                "regulatory_compliance",
+                "operational_risks", 
+                "financial_exposure",
+                "reputation_management",
+                "legal_liabilities"
             ]
         }
     }
@@ -78,18 +90,15 @@ def analyse_company(company_id):
             "type": data.get('risk_type', 'unknown'),
             "timestamp": datetime.now().isoformat()
         }
-    
-    # Send to AI service
-    ai_endpoint_url = os.getenv('AI_ANALYSIS_ENDPOINT')
-    if not ai_endpoint_url:
-        return jsonify({"error": "AI endpoint URL not configured"}), 500
-    
-    try:
-        response = requests.post(ai_endpoint_url, json=analysis_payload, timeout=30)
-        response.raise_for_status()
-        ai_result = response.json()
-    except requests.exceptions.RequestException as e:
-        return jsonify({"error": f"AI service error: {str(e)}"}), 500
+
+    analysis_payload = json.dumps(analysis_payload)
+
+    client = Client("Baon2024/hackathon")
+    result = client.predict(
+		articles=analysis_payload,
+		api_name="/predict"
+    )
+    print(result)
     
     # test_payload = {
     #     "analysis_id": "1",
@@ -117,17 +126,24 @@ def analyse_company(company_id):
         company_id=company_id,
         analysis_type="dynamic_risk" if is_dynamic_risk else "general",
         payload=analysis_payload,
-        result=ai_result,
+        result=result,
         timestamp=datetime.now().isoformat()
     )
     
     if error:
         return jsonify({"error": f"Failed to store analysis: {error}"}), 500
     
-    # Add analysis ID to response
-    ai_result["analysis_id"] = analysis_id
+    # Convert result to dict if it's a string
+    if isinstance(result, str):
+        try:
+            result = json.loads(result)
+        except json.JSONDecodeError:
+            return jsonify({"error": "Failed to parse AI service response"}), 500
     
-    return jsonify(ai_result), 200
+    # Add analysis ID to response
+    result["analysis_id"] = analysis_id
+    
+    return jsonify(result), 200
 
 
 @analysis_bp.route('/companies/<company_id>/analyses', methods=['GET'])
