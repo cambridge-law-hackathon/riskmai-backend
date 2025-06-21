@@ -127,28 +127,15 @@ fetch('/api/companies/abc123/documents', {
   ```
 
 ---
-
-### 6. **Analyze a Company**
+### 6. **Analyse a Company (Unified Endpoint)**
 
 - **POST** `/api/companies/{company_id}/analyse`
-- **Body:** (empty or `{}`)
-- **Response:**  
+- **For General Analysis (Body):**  
   ```json
-  {
-    "company_info": { ... },
-    "analysis_summary": "...",
-    "risk_factors": [ ... ],
-    "recommendations": [ ... ],
-    "available_data": { ... }
-  }
+  {}
   ```
-
----
-
-### 7. **Analyse Dynamic Risk**
-
-- **POST** `/api/companies/{company_id}/dynamic-risk`
-- **Body:**
+  or empty body
+- **For Dynamic Risk Analysis (Body):**
   ```json
   {
     "risk_description": "New GDPR regulations require immediate data processing changes",
@@ -156,7 +143,31 @@ fetch('/api/companies/abc123/documents', {
     "risk_type": "regulatory"
   }
   ```
-- **Response:**
+- **General Analysis Response:**  
+  ```json
+  {
+    "risk_factors": [
+      {
+        "severity": "Low",
+        "risk_type": "Reputational Risk",
+        "affected_contracts": "contract.pdf",
+        "affected_clauses": "Clause 1.1",
+        "narrative": {
+          "solutions_in_contract": "The contract does have a clause that addresses this risk. 16.1",
+          "alternative_mitigations": "Do xyz to mitigate the risk.",
+          "monitoring_tasks": "Monitor the risk and report to the board every 3 months."
+        }
+      }
+    ],
+    "available_data": {
+      "context_items": ["Acme is a global widget supplier."],
+      "document_count": 3,
+      "content_available": true,
+      "news_available": true
+    }
+  }
+  ```
+- **Dynamic Risk Analysis Response:**
   ```json
   {
     "risk_analysis": {
@@ -171,19 +182,70 @@ fetch('/api/companies/abc123/documents', {
       "data_coverage": "Comprehensive"
     },
     "recommendations": [
-      "Immediately review contracts for force majeure clauses",
-      "Assess regulatory reporting requirements",
-      "Evaluate operational continuity plans"
+      "Immediate Legal Response: Engage outside counsel specializing in cloud infrastructure disputes...",
+      "Customer Communication Strategy: Develop a comprehensive communication plan...",
+      "Infrastructure Migration Planning: Immediately initiate parallel infrastructure deployment..."
     ],
     "next_steps": [
-      "Schedule emergency board meeting",
-      "Review insurance coverage",
-      "Update risk register"
+      "Executive Crisis Management: Convene an emergency board meeting within 24 hours...",
+      "Financial Risk Mitigation: Immediately review all insurance policies...",
+      "Regulatory and Compliance Review: Conduct immediate review of all regulatory obligations..."
     ],
-    "ai_confidence": 0.85,
+    "ai_confidence": 0.92,
     "analysis_timestamp": "2024-01-01T00:00:00Z"
   }
   ```
+
+---
+
+## Response Format Details
+
+### General Analysis Response Fields
+
+**`risk_factors`** - Array of identified risk factors:
+- `severity`: Risk level ("Low", "Medium", "High", "Critical")
+- `risk_type`: Category of risk ("Reputational Risk", "Operational Risk", "Financial Risk", etc.)
+- `affected_contracts`: Specific contracts impacted by this risk
+- `affected_clauses`: Specific contract clauses related to the risk
+- `narrative`: Detailed analysis including:
+  - `solutions_in_contract`: How the contract addresses (or fails to address) the risk
+  - `alternative_mitigations`: Suggested actions to mitigate the risk
+  - `monitoring_tasks`: Ongoing monitoring requirements
+
+**`available_data`** - Summary of data used in analysis:
+- `context_items`: Array of company context information
+- `document_count`: Number of documents analyzed
+- `content_available`: Boolean indicating if document content was available
+- `news_available`: Boolean indicating if news data was available
+
+### Dynamic Risk Analysis Response Fields
+
+**`risk_analysis`** - Core risk assessment:
+- `scenario`: Description of the specific risk scenario
+- `risk_level`: Overall risk level assessment
+- `impact_assessment`: Detailed impact analysis
+- `affected_areas`: Business areas impacted by the risk
+
+**`news_analysis`** - News sentiment and trend analysis:
+- `articles_found`: Number of relevant news articles
+- `negative_sentiment_ratio`: Proportion of negative sentiment articles
+- `trending_topics`: Key topics from recent news
+- `market_context`: Summary of market conditions
+
+**`company_specific_insights`** - Company-specific analysis:
+- `relevant_contracts`: Number of contracts relevant to the risk
+- `context_alignment`: How well company context aligns with the risk
+- `data_coverage`: Quality of available data for analysis
+- `critical_contracts_identified`: Specific contracts of concern
+- `force_majeure_analysis`: Analysis of force majeure implications
+
+**`recommendations`** - Detailed action recommendations with legal context
+
+**`next_steps`** - Immediate action items with executive-level guidance
+
+**`ai_confidence`** - Confidence score (0-1) for the analysis quality
+
+**`analysis_timestamp`** - When the analysis was performed
 
 ---
 

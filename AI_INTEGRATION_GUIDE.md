@@ -10,6 +10,98 @@ This guide explains the data structure and format that your AI service will rece
 
 **Base URL:** `http://localhost:5000` (or your deployed server URL)
 
+## Unified Analysis Endpoint
+
+**URL:** `POST /companies/{company_id}/analyse`
+
+This endpoint handles both general company analysis and dynamic risk analysis based on the request payload.
+
+### General Analysis Request
+```bash
+curl -X POST "http://localhost:5000/companies/company_123/analyse" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+### Dynamic Risk Analysis Request
+```bash
+curl -X POST "http://localhost:5000/companies/company_123/analyse" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "risk_description": "New GDPR regulations require immediate data processing changes",
+    "risk_context": "Additional context about the risk scenario",
+    "risk_type": "regulatory"
+  }'
+```
+
+### Expected Response Format
+
+**For General Analysis:**
+```json
+{
+  "risk_factors": [
+    {
+      "severity": "Low",
+      "risk_type": "Reputational Risk",
+      "affected_contracts": "contract.pdf",
+      "affected_clauses": "Clause 1.1",
+      "narrative": {
+        "solutions_in_contract": "The contract does have a clause that addresses this risk. 16.1",
+        "alternative_mitigations": "Do xyz to mitigate the risk.",
+        "monitoring_tasks": "Monitor the risk and report to the board every 3 months."
+      }
+    }
+  ],
+  "available_data": {
+    "context_items": ["Company context information"],
+    "document_count": 3,
+    "content_available": true,
+    "news_available": true
+  }
+}
+```
+
+**For Dynamic Risk Analysis:**
+```json
+{
+  "risk_analysis": {
+    "scenario": "New GDPR regulations require immediate data processing changes",
+    "risk_level": "High",
+    "impact_assessment": "This regulatory risk represents an existential threat to company operations...",
+    "affected_areas": [
+      "Contractual obligations and SLA compliance",
+      "Customer relationship management and retention",
+      "Financial stability and cash flow"
+    ]
+  },
+  "news_analysis": {
+    "articles_found": 15,
+    "negative_sentiment_ratio": 0.4,
+    "trending_topics": ["GDPR compliance", "Data protection", "Regulatory changes"],
+    "market_context": "Found 15 relevant articles with 6 showing negative sentiment"
+  },
+  "company_specific_insights": {
+    "relevant_contracts": 3,
+    "context_alignment": "High",
+    "data_coverage": "Comprehensive",
+    "critical_contracts_identified": "Multiple customer contracts with data processing clauses",
+    "force_majeure_analysis": "Regulatory changes may trigger force majeure provisions"
+  },
+  "recommendations": [
+    "Immediate Legal Response: Engage outside counsel specializing in data protection...",
+    "Customer Communication Strategy: Develop a comprehensive communication plan...",
+    "Compliance Planning: Immediately initiate GDPR compliance assessment..."
+  ],
+  "next_steps": [
+    "Executive Crisis Management: Convene an emergency board meeting within 24 hours...",
+    "Financial Risk Mitigation: Immediately review all insurance policies...",
+    "Regulatory and Compliance Review: Conduct immediate review of all regulatory obligations..."
+  ],
+  "ai_confidence": 0.92,
+  "analysis_timestamp": "2024-01-15T12:00:00Z"
+}
+```
+
 ## Request Format
 
 ```bash
@@ -262,51 +354,43 @@ Your AI service should handle these scenarios:
 - **Scalability**: Support concurrent analysis requests
 - **Reliability**: 99.9% uptime for analysis service
 
-## Testing
+## Internal Analysis Payload Structure
 
-Test your AI service with:
+The unified analysis endpoint (`/companies/{company_id}/analyse`) uses this internal payload structure when processing requests:
 
-1. **Sample Company**: Use the provided example data
-2. **Edge Cases**: Empty documents, missing news, large payloads
-3. **Error Scenarios**: Invalid data, API failures
-4. **Performance**: Large document collections
-
-## Integration Example
-
-```python
-import requests
-import json
-
-def analyze_company_risk(company_id, ai_endpoint_url):
-    # Get prepared data from business risk platform
-    response = requests.post(
-        f"http://localhost:5000/companies/{company_id}/send-to-ai",
-        json={"ai_endpoint_url": ai_endpoint_url}
-    )
-    
-    if response.status_code == 200:
-        data = response.json()
-        ai_payload = data["ai_payload"]
-        
-        # Send to your AI service
-        ai_response = requests.post(
-            ai_endpoint_url,
-            json=ai_payload,
-            headers={"Content-Type": "application/json"}
-        )
-        
-        return ai_response.json()
-    else:
-        raise Exception(f"Failed to prepare data: {response.text}")
+```json
+{
+  "company_info": {
+    "name": "Tesla Inc",
+    "context": ["Electric vehicle manufacturer", "Global operations"],
+    "documents": [
+      {
+        "file_name": "master_service_agreement.pdf",
+        "content": "This Master Service Agreement (MSA) is entered into...",
+        "file_type": "pdf"
+      }
+    ]
+  },
+  "news_data": {
+    "articles_summary": [
+      {
+        "title": "Oil prices surge as Iran tensions escalate",
+        "description": "Global oil markets react to rising tensions...",
+        "content": "Oil prices surged to their highest level...",
+        "url": "https://www.reuters.com/business/energy/...",
+        "source": "Reuters",
+        "date": "2024-01-15T10:00:00Z",
+        "sentiment": "negative"
+      }
+    ]
+  },
+  "risk_scenario": {
+    "description": "New GDPR regulations require immediate data processing changes",
+    "context": "Additional context about the risk scenario",
+    "type": "regulatory",
+    "timestamp": "2024-01-15T12:00:00Z"
+  }
+}
 ```
 
-## Support
-
-For technical questions or integration issues:
-- **Documentation**: This guide and API documentation
-- **Testing**: Use the provided example endpoints
-- **Development**: Start with mock data for testing
-
----
-
-**Note**: This integration enables comprehensive business risk analysis by combining company-specific data, legal documents, and real-time news to provide actionable risk insights. 
+**Note**: The `risk_scenario` field is only included for dynamic risk analysis requests. 

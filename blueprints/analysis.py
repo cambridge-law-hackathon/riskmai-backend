@@ -7,95 +7,16 @@ analysis_bp = Blueprint('analysis', __name__)
 
 @analysis_bp.route('/companies/<company_id>/analyse', methods=['POST'])
 def analyse_company(company_id):
-    # For now, this is a placeholder for the black box AI agent.
-    # We will fetch company data and simulate an analysis.
-
-    company_data, error = firebase_service.get_company_data(company_id)
-
-    if error:
-        return jsonify({"error": error}), 500
-    
-    if not company_data:
-        return jsonify({"error": "Company not found"}), 404
-
-    # Extract relevant data for analysis
-    company_name = company_data.get('name', 'Unknown Company')
-    context_items = company_data.get('context', [])
-    documents = company_data.get('documents', [])
-    
-    # Count documents and their content
-    total_documents = len(documents)
-    total_content_length = sum(len(doc.get('content', '')) for doc in documents)
-    
-    # Fetch relevant news articles
-    try:
-        news_service = NewsAPIService()
-        news_data = news_service.get_company_specific_news(company_name, days_back=30)
-    except Exception as e:
-        print(f"Error fetching news: {e}")
-        news_data = {"articles": [], "total_results": 0, "error": str(e)}
-    
-    # Create a summary of available data
-    data_summary = {
-        "company_name": company_name,
-        "context_items_count": len(context_items),
-        "documents_count": total_documents,
-        "total_content_length": total_content_length,
-        "context_items": context_items,
-        "document_names": [doc.get('file_name', 'Unknown') for doc in documents],
-        "news_articles_count": news_data.get("total_results", 0)
-    }
-
-    # Here you would typically call the news searching AI agent
-    # with company_data and news_data to get real analysis.
-    
-    # For now, provide a realistic analysis based on available data
-    analysis_result = {
-        "risk_factors": [
-            {
-                "factor": "", 
-                "level": "", 
-                "details": ""
-            },
-            {
-                "factor": "", 
-                "level": "", 
-                "details": ""
-            },
-            {
-                "factor": "", 
-                "level": "", 
-                "details": ""
-            }
-        ],
-        "recommendations": [
-            "",
-            "",
-            ""
-        ],
-        "available_data": {
-            "context_items": context_items,
-            "document_count": total_documents,
-            "content_available": total_content_length > 0,
-            "news_available": news_data.get("total_results", 0) > 0
-        }
-    }
-
-    return jsonify(analysis_result), 200
-
-@analysis_bp.route('/companies/<company_id>/dynamic-risk', methods=['POST'])
-def analyze_dynamic_risk(company_id):
     """
-    Analyze a specific dynamic risk scenario for a company.
-    Combines user-provided risk information with company context, documents, and relevant news.
-    """
-    data = request.get_json()
-    if not data or not 'risk_description' in data:
-        return jsonify({"error": "Risk description is required"}), 400
+    Unified analysis endpoint that handles both general company analysis and dynamic risk analysis.
     
-    risk_description = data.get('risk_description')
-    risk_context = data.get('risk_context', '')  # Additional context about the risk
-    risk_type = data.get('risk_type', 'unknown')  # e.g., 'regulatory', 'operational', 'financial'
+    For general analysis: Send empty body or {}
+    For dynamic risk analysis: Send {"risk_description": "...", "risk_context": "...", "risk_type": "..."}
+    """
+    data = request.get_json() or {}
+    
+    # Check if this is a dynamic risk analysis request
+    is_dynamic_risk = 'risk_description' in data
     
     # Get company data including context and documents
     company_data, error = firebase_service.get_company_data(company_id)
@@ -111,19 +32,15 @@ def analyze_dynamic_risk(company_id):
     company_context = company_data.get('context', [])
     documents = company_data.get('documents', [])
     
-    # Fetch relevant news articles for the specific risk scenario
+    # Fetch relevant news articles based on analysis type
     try:
         news_service = NewsAPIService()
-        news_data = news_service.get_risk_specific_news(
-            risk_description=risk_description,
-            risk_type=risk_type,
-            company_name=company_name
-        )
+        news_data = news_service.get_company_specific_news(company_name, days_back=30)
     except Exception as e:
         print(f"Error fetching news: {e}")
         news_data = {"articles": [], "total_results": 0, "error": str(e)}
     
-    # Prepare data for AI agent
+    # Prepare analysis payload
     analysis_payload = {
         "company_info": {
             "name": company_name,
@@ -136,20 +53,13 @@ def analyze_dynamic_risk(company_id):
                 } for doc in documents
             ]
         },
-        "risk_scenario": {
-            "description": risk_description,
-            "context": risk_context,
-            "type": risk_type,
-            "timestamp": datetime.now().isoformat()
-        },
-        "news_context": {
-            "articles": news_data.get("articles", []),
-            "total_results": news_data.get("total_results", 0),
-            "search_query": news_data.get("query", ""),
-            "recent_developments": [
+        "news_data": {
+            "articles_summary": [
                 {
                     "title": article.get("title"),
-                    "summary": article.get("description"),
+                    "description": article.get("description"),
+                    "content": article.get("content"),
+                    "url": article.get("url"),
                     "source": article.get("source"),
                     "date": article.get("published_date"),
                     "sentiment": article.get("sentiment")
@@ -158,21 +68,73 @@ def analyze_dynamic_risk(company_id):
         }
     }
     
-    # Here you would call the AI agent with the analysis_payload
-    # For now, provide a simulated analysis
-    ai_analysis = simulate_ai_analysis(analysis_payload)
+    # Add risk scenario data if this is a dynamic risk analysis
+    if is_dynamic_risk:
+        analysis_payload["risk_scenario"] = {
+            "description": data.get('risk_description'),
+            "context": data.get('risk_context', ''),
+            "type": data.get('risk_type', 'unknown'),
+            "timestamp": datetime.now().isoformat()
+        }
     
-    return jsonify(ai_analysis), 200
+    # Generate appropriate analysis based on request type
+    if is_dynamic_risk:
+        analysis_result = simulate_dynamic_risk_analysis(analysis_payload)
+    else:
+        analysis_result = simulate_general_analysis(analysis_payload)
+    
+    return jsonify(analysis_result), 200
 
-def simulate_ai_analysis(payload):
+
+def simulate_general_analysis(payload):
+    """
+    Simulate AI agent analysis for general company risk assessment.
+    """
+    company_name = payload["company_info"]["name"]
+    context_items = payload["company_info"]["context"]
+    documents = payload["company_info"]["documents"]
+    news_articles = payload.get("news_data", {}).get("articles_summary", [])
+    
+    # Count documents and their content
+    total_documents = len(documents)
+    total_content_length = sum(len(doc.get('content', '')) for doc in documents)
+    
+    # Analyze news sentiment
+    relevant_news_count = len(news_articles)
+    negative_sentiment_count = len([a for a in news_articles if a.get("sentiment") == "negative"])
+    
+    # Generate risk factors based on available data
+    risk_factors = []
+    risk_factors.append({
+        "severity": "Low",
+        "risk_type": "Reputational Risk",
+        "affected_contracts": "contract.pdf",
+        "affected_clauses": "Clause 1.1",
+        "narrative":{
+            "solutions_in_contract": "The contract does have a clause that addresses this risk. 16.1",
+            "alternative_mitigations": "Do xyz to mitigate the risk.",
+            "monitoring_tasks": "Monitor the risk and report to the board every 3 months.",
+
+        }
+    })
+    return {
+        "risk_factors": risk_factors,
+        "available_data": {
+            "context_items": context_items,
+            "document_count": total_documents,
+            "content_available": total_content_length > 0,
+            "news_available": relevant_news_count > 0
+        }
+    }
+
+def simulate_dynamic_risk_analysis(payload):
     """
     Simulate AI agent analysis of dynamic risk scenario.
-    In production, this would call your actual AI agent.
     """
     company_name = payload["company_info"]["name"]
     risk_description = payload["risk_scenario"]["description"]
     risk_type = payload["risk_scenario"]["type"]
-    news_articles = payload.get("news_context", {}).get("articles", [])
+    news_articles = payload.get("news_data", {}).get("articles_summary", [])
     
     # Analyze news sentiment and relevance
     relevant_news_count = len(news_articles)
@@ -219,7 +181,7 @@ def simulate_ai_analysis(payload):
         "analysis_timestamp": datetime.now().isoformat()
     }
     
-    return analysis_result 
+    return analysis_result
 
 @analysis_bp.route('/companies/<company_id>/send-to-ai', methods=['POST'])
 def send_to_ai_endpoint(company_id):
