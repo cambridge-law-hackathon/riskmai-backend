@@ -4,10 +4,13 @@ from services.news_service import NewsAPIService
 from datetime import datetime
 import requests
 import os
-from gradio_client import Client
+from openai import OpenAI
 import json
 
 analysis_bp = Blueprint('analysis', __name__)
+
+# Initialize OpenAI client
+client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
 @analysis_bp.route('/companies/<company_id>/analyse', methods=['POST'])
 def analyse_company(company_id):
@@ -84,36 +87,116 @@ def analyse_company(company_id):
     
     # Add risk scenario data if this is a dynamic risk analysis
     if is_dynamic_risk:
+        # Prepare the prompt for dynamic risk analysis
+        dynamic_risk_prompt = f"""
+You are a legal intelligence AI assistant helping General Counsels assess business risks. 
 
-        analysis_payload = json.dumps(analysis_payload)
-        client = Client("Baon2024/dynamic_question")
-        result = client.predict(
-            articles=analysis_payload,
-            risk_factor=data.get('risk_description'),
-            api_name="/predict"
-        )
-        print(result)
+Company Information:
+- Name: {company_name}
+- Context: {company_context}
+- Documents: {len(documents)} documents uploaded
+- News Articles: {len(news_data.get('articles', []))} recent articles
 
-        # Convert result to dict if it's a string
-        if isinstance(result, str):
+Risk Scenario to Analyze:
+{data.get('risk_description', '')}
+
+Context: {data.get('risk_context', '')}
+Risk Type: {data.get('risk_type', 'General')}
+
+Recent News Articles:
+{chr(10).join([f"- {article.get('title', 'No title')} ({article.get('source', 'Unknown source')} - {article.get('published_date', 'Unknown date')}): {article.get('description', 'No description')}" for article in news_data.get('articles', [])[:5]])}
+
+Please provide a comprehensive risk analysis in the following JSON format:
+{{
+    "risk_analysis": {{
+        "scenario": "Brief description of the risk scenario",
+        "risk_level": "Low/Medium/High/Critical",
+        "impact_assessment": "Detailed assessment of potential impacts",
+        "affected_areas": ["Area 1", "Area 2", "Area 3"],
+        "legal_implications": "Analysis of legal consequences",
+        "regulatory_considerations": "Relevant regulatory issues",
+        "news_triggers": [
+            {{
+                "article_title": "Title of the news article",
+                "article_source": "Source of the article",
+                "article_date": "Date of the article",
+                "risk_connection": "How this article relates to the identified risk"
+            }}
+        ]
+    }},
+    "recommendations": [
+        "Specific actionable recommendation 1",
+        "Specific actionable recommendation 2",
+        "Specific actionable recommendation 3"
+    ],
+    "next_steps": [
+        "Immediate next step 1",
+        "Immediate next step 2",
+        "Immediate next step 3"
+    ],
+    "ai_confidence": 0.85,
+    "analysis_timestamp": "{datetime.now().isoformat()}"
+}}
+
+Provide detailed, lawyer-style analysis with specific legal considerations and actionable recommendations. For each risk identified, reference the specific news articles that triggered or influenced that risk assessment.
+"""
+
+        try:
+            # Call OpenAI API
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a legal intelligence AI assistant specializing in business risk assessment for General Counsels. Always respond with valid JSON in the exact format requested."},
+                    {"role": "user", "content": dynamic_risk_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2000
+            )
+            
+            # Extract the response content
+            ai_response = response.choices[0].message.content.strip()
+            
+            # Try to parse as JSON
             try:
-                result_dict = json.loads(result)
+                final_result = json.loads(ai_response)
             except json.JSONDecodeError as e:
                 print(f"JSON decode error for dynamic risk: {e}")
-                print(f"Raw result was: {result}")
-                # If it's not JSON, treat it as plain text result
-                final_result = result
-                result_dict = None
-        else:
-            result_dict = result if isinstance(result, dict) else {"result": str(result)}
-
-        # Extract just the "result" field if it exists
-        if result_dict is not None:
-            if "result" in result_dict:
-                final_result = result_dict["result"]
-            else:
-                final_result = result_dict
-        # final_result already set for string case above
+                print(f"Raw AI response was: {ai_response}")
+                # If JSON parsing fails, create a structured response
+                final_result = {
+                    "risk_analysis": {
+                        "scenario": data.get('risk_description', 'Unknown scenario'),
+                        "risk_level": "Unknown",
+                        "impact_assessment": ai_response,
+                        "affected_areas": ["General"],
+                        "legal_implications": "Analysis failed to parse properly",
+                        "regulatory_considerations": "Analysis failed to parse properly",
+                        "news_triggers": []
+                    },
+                    "recommendations": ["Review the raw analysis response"],
+                    "next_steps": ["Contact technical support"],
+                    "ai_confidence": 0.5,
+                    "analysis_timestamp": datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            print(f"OpenAI API error: {e}")
+            final_result = {
+                "error": f"Failed to analyze risk: {str(e)}",
+                "risk_analysis": {
+                    "scenario": data.get('risk_description', 'Unknown scenario'),
+                    "risk_level": "Unknown",
+                    "impact_assessment": "Analysis failed due to API error",
+                    "affected_areas": ["General"],
+                    "legal_implications": "Analysis failed due to API error",
+                    "regulatory_considerations": "Analysis failed due to API error",
+                    "news_triggers": []
+                },
+                "recommendations": ["Check OpenAI API configuration"],
+                "next_steps": ["Verify API key and network connection"],
+                "ai_confidence": 0.0,
+                "analysis_timestamp": datetime.now().isoformat()
+            }
 
         # Store analysis results in database
         analysis_id, error = firebase_service.store_analysis_result(
@@ -133,36 +216,179 @@ def analyse_company(company_id):
         return jsonify(response_data), 200
 
     else:
-        analysis_payload = json.dumps(analysis_payload)
+        # Prepare the prompt for general analysis
+        general_analysis_prompt = f"""
+You are a legal intelligence AI assistant helping General Counsels assess business risks. 
 
-        client = Client("Baon2024/hackathon")
-        result = client.predict(
-            articles=analysis_payload,
-            api_name="/predict"
-        )
-        print(result)
-    
-    # test_payload = {
-    #     "analysis_id": "1",
-    #     "risk_analysis": {
-    #         "scenario": "Test risk scenario",
-    #         "risk_level": "Medium", 
-    #         "impact_assessment": "This is a test impact assessment",
-    #         "affected_areas": ["Test Area 1", "Test Area 2"]
-    #     },
-    #     "recommendations": [
-    #         "Test recommendation 1",
-    #         "Test recommendation 2"
-    #     ],
-    #     "next_steps": [
-    #         "Test next step 1",
-    #         "Test next step 2"  
-    #     ],
-    #     "ai_confidence": 0.95,
-    #     "analysis_timestamp": datetime.now().isoformat()
-    # }
+Company Information:
+- Name: {company_name}
+- Context: {company_context}
+- Documents: {len(documents)} documents uploaded
+- News Articles: {len(news_data.get('articles', []))} recent articles
 
-    
+Recent News Articles:
+{chr(10).join([f"- {article.get('title', 'No title')} ({article.get('source', 'Unknown source')} - {article.get('published_date', 'Unknown date')}): {article.get('description', 'No description')}" for article in news_data.get('articles', [])[:5]])}
+
+Please provide a comprehensive business risk analysis covering regulatory compliance, operational risks, financial exposure, reputation management, and legal liabilities.
+
+Please provide the analysis in the following JSON format:
+{{
+    "risk_analysis": {{
+        "regulatory_compliance": {{
+            "risk_level": "Low/Medium/High/Critical",
+            "assessment": "Detailed assessment of regulatory compliance risks",
+            "key_concerns": ["Concern 1", "Concern 2", "Concern 3"],
+            "news_triggers": [
+                {{
+                    "article_title": "Title of the news article",
+                    "article_source": "Source of the article",
+                    "article_date": "Date of the article",
+                    "risk_connection": "How this article relates to regulatory compliance risks"
+                }}
+            ]
+        }},
+        "operational_risks": {{
+            "risk_level": "Low/Medium/High/Critical",
+            "assessment": "Detailed assessment of operational risks",
+            "key_concerns": ["Concern 1", "Concern 2", "Concern 3"],
+            "news_triggers": [
+                {{
+                    "article_title": "Title of the news article",
+                    "article_source": "Source of the article",
+                    "article_date": "Date of the article",
+                    "risk_connection": "How this article relates to operational risks"
+                }}
+            ]
+        }},
+        "financial_exposure": {{
+            "risk_level": "Low/Medium/High/Critical",
+            "assessment": "Detailed assessment of financial exposure risks",
+            "key_concerns": ["Concern 1", "Concern 2", "Concern 3"],
+            "news_triggers": [
+                {{
+                    "article_title": "Title of the news article",
+                    "article_source": "Source of the article",
+                    "article_date": "Date of the article",
+                    "risk_connection": "How this article relates to financial exposure risks"
+                }}
+            ]
+        }},
+        "reputation_management": {{
+            "risk_level": "Low/Medium/High/Critical",
+            "assessment": "Detailed assessment of reputation management risks",
+            "key_concerns": ["Concern 1", "Concern 2", "Concern 3"],
+            "news_triggers": [
+                {{
+                    "article_title": "Title of the news article",
+                    "article_source": "Source of the article",
+                    "article_date": "Date of the article",
+                    "risk_connection": "How this article relates to reputation management risks"
+                }}
+            ]
+        }},
+        "legal_liabilities": {{
+            "risk_level": "Low/Medium/High/Critical",
+            "assessment": "Detailed assessment of legal liability risks",
+            "key_concerns": ["Concern 1", "Concern 2", "Concern 3"],
+            "news_triggers": [
+                {{
+                    "article_title": "Title of the news article",
+                    "article_source": "Source of the article",
+                    "article_date": "Date of the article",
+                    "risk_connection": "How this article relates to legal liability risks"
+                }}
+            ]
+        }}
+    }},
+    "overall_risk_assessment": {{
+        "overall_risk_level": "Low/Medium/High/Critical",
+        "summary": "Overall risk assessment summary",
+        "critical_issues": ["Critical issue 1", "Critical issue 2"]
+    }},
+    "recommendations": [
+        "Specific actionable recommendation 1",
+        "Specific actionable recommendation 2",
+        "Specific actionable recommendation 3",
+        "Specific actionable recommendation 4",
+        "Specific actionable recommendation 5"
+    ],
+    "next_steps": [
+        "Immediate next step 1",
+        "Immediate next step 2",
+        "Immediate next step 3"
+    ],
+    "ai_confidence": 0.85,
+    "analysis_timestamp": "{datetime.now().isoformat()}"
+}}
+
+Provide detailed, lawyer-style analysis with specific legal considerations and actionable recommendations. For each risk category identified, reference the specific news articles that triggered or influenced that risk assessment.
+"""
+
+        try:
+            # Call OpenAI API
+            response = client.chat.completions.create(
+                model="gpt-4",
+                messages=[
+                    {"role": "system", "content": "You are a legal intelligence AI assistant specializing in business risk assessment for General Counsels. Always respond with valid JSON in the exact format requested."},
+                    {"role": "user", "content": general_analysis_prompt}
+                ],
+                temperature=0.3,
+                max_tokens=2500
+            )
+            
+            # Extract the response content
+            ai_response = response.choices[0].message.content.strip()
+            
+            # Try to parse as JSON
+            try:
+                result = json.loads(ai_response)
+            except json.JSONDecodeError as e:
+                print(f"JSON decode error for general analysis: {e}")
+                print(f"Raw AI response was: {ai_response}")
+                # If JSON parsing fails, create a structured response
+                result = {
+                    "error": "Failed to parse AI response as JSON",
+                    "raw_response": ai_response,
+                    "risk_analysis": {
+                        "regulatory_compliance": {"risk_level": "Unknown", "assessment": "Analysis failed to parse properly", "key_concerns": ["General"]},
+                        "operational_risks": {"risk_level": "Unknown", "assessment": "Analysis failed to parse properly", "key_concerns": ["General"]},
+                        "financial_exposure": {"risk_level": "Unknown", "assessment": "Analysis failed to parse properly", "key_concerns": ["General"]},
+                        "reputation_management": {"risk_level": "Unknown", "assessment": "Analysis failed to parse properly", "key_concerns": ["General"]},
+                        "legal_liabilities": {"risk_level": "Unknown", "assessment": "Analysis failed to parse properly", "key_concerns": ["General"]}
+                    },
+                    "overall_risk_assessment": {
+                        "overall_risk_level": "Unknown",
+                        "summary": "Analysis failed to parse properly",
+                        "critical_issues": ["Review raw response"]
+                    },
+                    "recommendations": ["Review the raw analysis response"],
+                    "next_steps": ["Contact technical support"],
+                    "ai_confidence": 0.5,
+                    "analysis_timestamp": datetime.now().isoformat()
+                }
+                
+        except Exception as e:
+            print(f"OpenAI API error: {e}")
+            result = {
+                "error": f"Failed to analyze company: {str(e)}",
+                "risk_analysis": {
+                    "regulatory_compliance": {"risk_level": "Unknown", "assessment": "Analysis failed due to API error", "key_concerns": ["General"]},
+                    "operational_risks": {"risk_level": "Unknown", "assessment": "Analysis failed due to API error", "key_concerns": ["General"]},
+                    "financial_exposure": {"risk_level": "Unknown", "assessment": "Analysis failed due to API error", "key_concerns": ["General"]},
+                    "reputation_management": {"risk_level": "Unknown", "assessment": "Analysis failed due to API error", "key_concerns": ["General"]},
+                    "legal_liabilities": {"risk_level": "Unknown", "assessment": "Analysis failed due to API error", "key_concerns": ["General"]}
+                },
+                "overall_risk_assessment": {
+                    "overall_risk_level": "Unknown",
+                    "summary": "Analysis failed due to API error",
+                    "critical_issues": ["Check OpenAI API configuration"]
+                },
+                "recommendations": ["Check OpenAI API configuration"],
+                "next_steps": ["Verify API key and network connection"],
+                "ai_confidence": 0.0,
+                "analysis_timestamp": datetime.now().isoformat()
+            }
+
     # Store analysis results in database
     analysis_id, error = firebase_service.store_analysis_result(
         company_id=company_id,
